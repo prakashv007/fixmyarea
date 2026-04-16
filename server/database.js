@@ -48,6 +48,12 @@ const db = new sqlite3.Database(dbPath, (err) => {
 });
 
 // Helper functions for easy querying
+const insertComplaint = (complaint) => {
+  const {
+      ticket_id, citizen_name, citizen_phone, citizen_email, citizen_gender,
+      citizen_address, citizen_pincode, area, locality, street_name,
+      specific_location, category, title, is_anonymous, text, 
+      normalized_text, department, priority_score, severity_label, 
       estimated_resolution_time, sla_risk, location, status,
       slaDeadline, isSlaBreachWarning
   } = complaint;
