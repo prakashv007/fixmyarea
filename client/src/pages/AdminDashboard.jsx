@@ -10,6 +10,7 @@ import TicketDetailModal from '../components/TicketDetailModal';
 
 export default function AdminDashboard() {
     const [complaints, setComplaints] = useState([]);
+    const [stats, setStats] = useState({ total: 0, open: 0, inProgress: 0, resolved: 0, criticalQueue: [] });
     const [filterDept, setFilterDept] = useState('All');
     const [lastUpdated, setLastUpdated] = useState(new Date());
     const [view, setView] = useState('DASHBOARD'); // 'DASHBOARD' or 'LIST'
@@ -19,11 +20,15 @@ export default function AdminDashboard() {
     const fetchComplaints = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await axios.get('http://localhost:5000/complaints');
-            setComplaints(response.data);
+            const [complaintsRes, statsRes] = await Promise.all([
+                axios.get('http://localhost:5000/complaints'),
+                axios.get('http://localhost:5000/api/grievances/dashboard')
+            ]);
+            setComplaints(complaintsRes.data);
+            setStats(statsRes.data);
             setLastUpdated(new Date());
         } catch (error) {
-            console.error('Failed to fetch complaints:', error);
+            console.error('Failed to fetch dashboard data:', error);
         } finally {
             setLoading(false);
         }
@@ -158,7 +163,7 @@ export default function AdminDashboard() {
                                     </h2>
                                 </div>
                                 <div className="glass-card rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl">
-                                    <CriticalQueueTable complaints={filteredComplaints} onSelectTicket={setSelectedTicket} />
+                                    <CriticalQueueTable complaints={stats.criticalQueue} onSelectTicket={setSelectedTicket} />
                                 </div>
                             </div>
                         </div>

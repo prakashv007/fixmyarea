@@ -2,32 +2,51 @@ import React from 'react';
 import { AlertCircle, ChevronRight } from 'lucide-react';
 
 export default function CriticalQueueTable({ complaints, onSelectTicket }) {
-    const criticalComplaints = complaints.filter(c => c.status !== 'RESOLVED' && (c.priority_score >= 8 || c.sla_risk));
+    const getSlaCountdown = (deadline) => {
+        if (!deadline) return 'N/A';
+        const diff = new Date(deadline) - new Date();
+        if (diff <= 0) return 'BREACHED';
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        return `${hours}h ${mins}m`;
+    };
 
     return (
         <div className="w-full">
+            <style>
+                {`
+                    @keyframes rowPulse {
+                        0% { background: rgba(244, 63, 94, 0); }
+                        50% { background: rgba(244, 63, 94, 0.05); }
+                        100% { background: rgba(244, 63, 94, 0); }
+                    }
+                    .animate-row-pulse {
+                        animation: rowPulse 2s infinite ease-in-out;
+                    }
+                `}
+            </style>
             <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead className="bg-slate-900/50 text-slate-500 text-[10px] uppercase font-black tracking-[0.2em] border-b border-white/5">
                         <tr>
                             <th className="px-8 py-5">System ID</th>
-                            <th className="px-8 py-5">Node / Dept</th>
-                            <th className="px-8 py-5">Incident Intelligence</th>
+                            <th className="px-8 py-5">Department</th>
+                            <th className="px-8 py-5">SLA Countdown</th>
                             <th className="px-8 py-5 text-center">Threat Level</th>
-                            <th className="px-8 py-5">Response Time</th>
+                            <th className="px-8 py-5">Status</th>
                             <th className="px-8 py-5 text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                        {criticalComplaints.length === 0 ? (
+                        {complaints.length === 0 ? (
                             <tr>
                                 <td colSpan="6" className="px-8 py-16 text-center text-slate-600 font-bold uppercase tracking-widest bg-slate-900/10">
                                     Queue clear. No immediate threats detected.
                                 </td>
                             </tr>
                         ) : (
-                            criticalComplaints.map(complaint => (
-                                <tr key={complaint.ticket_id} className="group hover:bg-white/[0.02] transition-colors relative overflow-hidden">
+                            complaints.map(complaint => (
+                                <tr key={complaint.ticket_id} className="group hover:bg-white/[0.02] transition-colors relative overflow-hidden animate-row-pulse">
                                     <td className="px-8 py-6">
                                         <div className="flex items-center gap-3">
                                             <div className="w-1.5 h-6 bg-rose-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
@@ -39,8 +58,13 @@ export default function CriticalQueueTable({ complaints, onSelectTicket }) {
                                             {complaint.department}
                                         </span>
                                     </td>
-                                    <td className="px-8 py-6 max-w-xs truncate text-slate-400 font-medium italic opacity-70 group-hover:opacity-100 transition-opacity">
-                                        "{complaint.normalized_text}"
+                                    <td className="px-8 py-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Breach Time</span>
+                                                <span className="text-sm font-black text-slate-200 lining-nums">{getSlaCountdown(complaint.slaDeadline)}</span>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td className="px-8 py-6 text-center">
                                         <div className="inline-flex flex-col items-center">
@@ -49,9 +73,9 @@ export default function CriticalQueueTable({ complaints, onSelectTicket }) {
                                         </div>
                                     </td>
                                     <td className="px-8 py-6">
-                                        <div className="flex items-center gap-2 text-slate-300 font-bold">
-                                            <AlertCircle className="w-4 h-4 text-amber-500 items-center" />
-                                            {complaint.estimated_resolution_time}
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">Imminent Breach</span>
                                         </div>
                                     </td>
                                     <td className="px-8 py-6 text-right">
