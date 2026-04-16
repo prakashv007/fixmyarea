@@ -13,6 +13,16 @@ app.use(express.json());
 // Main Entry Point for Citizens
 app.post('/complaint', submitGrievance);
 
+app.get('/api/grievances/dashboard', async (req, res) => {
+    try {
+        const stats = await getDashboardStats();
+        res.status(200).json(stats);
+    } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 app.get('/complaints', async (req, res) => {
     try {
         const complaints = await getAllComplaints();

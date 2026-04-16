@@ -27,6 +27,13 @@ const submitGrievance = async (req, res) => {
         const triage = await processComplaintWithAI(text);
         
         // 2. Prepare full complaint object with new SLA fields
+        const now = new Date();
+        let slaHours = 48; // Default for Priority 1-3
+        if (triage.priority_score >= 8) slaHours = 12;
+        else if (triage.priority_score >= 4) slaHours = 24;
+
+        const slaDeadline = new Date(now.getTime() + (slaHours * 60 * 60 * 1000));
+
         const complaintData = {
             ticket_id: generateTicketId(),
             citizen_name: citizen_name || null,
@@ -51,7 +58,7 @@ const submitGrievance = async (req, res) => {
             sla_risk: triage.sla_risk,
             location: specific_location || area || null,
             status: 'OPEN',
-            slaDeadline: null, // To be calculated in Step 2
+            slaDeadline: slaDeadline.toISOString(),
             isSlaBreachWarning: false
         };
 

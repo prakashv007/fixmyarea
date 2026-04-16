@@ -113,10 +113,40 @@ const updateComplaintStatus = (ticketId, status) => {
   });
 };
 
+const getCriticalComplaints = () => {
+    return new Promise((resolve, reject) => {
+        const query = `
+            SELECT * FROM complaints 
+            WHERE status != 'RESOLVED' 
+            AND slaDeadline <= datetime('now', '+4 hours')
+            ORDER BY slaDeadline ASC
+        `;
+        db.all(query, [], (err, rows) => {
+            if (err) return reject(err);
+            resolve(rows);
+        });
+    });
+};
+
+const getDashboardStats = async () => {
+    const complaints = await getAllComplaints();
+    const critical = await getCriticalComplaints();
+    
+    return {
+        total: complaints.length,
+        open: complaints.filter(c => c.status === 'OPEN').length,
+        inProgress: complaints.filter(c => c.status === 'IN_PROGRESS').length,
+        resolved: complaints.filter(c => c.status === 'RESOLVED').length,
+        criticalQueue: critical
+    };
+};
+
 module.exports = {
   db,
   insertComplaint,
   getAllComplaints,
   getComplaintByTicketId,
-  updateComplaintStatus
+  updateComplaintStatus,
+  getCriticalComplaints,
+  getDashboardStats
 };
