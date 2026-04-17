@@ -58,8 +58,8 @@ const submitGrievance = async (req, res) => {
             sla_risk: triage.sla_risk,
             location: specific_location || area || null,
             status: 'OPEN',
-            slaDeadline: slaDeadline.toISOString(),
-            isSlaBreachWarning: false
+            sladeadline: slaDeadline.toISOString(),
+            isslabreachwarning: false
         };
 
         // 3. Store in SQLite Database

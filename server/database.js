@@ -62,7 +62,7 @@ const updateComplaintStatus = async (ticketId, status, isSlaBreachWarning) => {
     try {
         const updateData = { status };
         if (isSlaBreachWarning !== undefined) {
-            updateData.isSlaBreachWarning = isSlaBreachWarning;
+            updateData.isslabreachwarning = isSlaBreachWarning;
         }
         
         const { data, error, count } = await supabase
@@ -84,8 +84,8 @@ const getCriticalComplaints = async () => {
             .from('complaints')
             .select('*')
             .neq('status', 'RESOLVED')
-            .eq('isSlaBreachWarning', true)
-            .order('slaDeadline', { ascending: true });
+            .eq('isslabreachwarning', true)
+            .order('sladeadline', { ascending: true });
             
         if (error) throw error;
         return data || [];

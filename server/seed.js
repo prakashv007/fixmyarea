@@ -23,7 +23,7 @@ const dummyComplaints = [
         category: 'Grievance',
         title: 'Damage',
         status: 'OPEN',
-        isSlaBreachWarning: 1
+        isslabreachwarning: 1
     },
     {
         ticket_id: 'TKT-MD02TN',
@@ -45,7 +45,7 @@ const dummyComplaints = [
         category: 'Water Stagnation',
         title: 'Broken Water Main',
         status: 'OPEN',
-        isSlaBreachWarning: 1
+        isslabreachwarning: 1
     },
     {
         ticket_id: 'TKT-CB03TN',
@@ -67,7 +67,7 @@ const dummyComplaints = [
         category: 'Street Light',
         title: 'Major Power Outage',
         status: 'OPEN',
-        isSlaBreachWarning: 1
+        isslabreachwarning: 1
     },
 
     // === STANDARD PRIORITY ===
@@ -91,7 +91,7 @@ const dummyComplaints = [
         category: 'Road and Footpath',
         title: 'Dangerous Pothole',
         status: 'OPEN',
-        isSlaBreachWarning: 0
+        isslabreachwarning: 0
     },
     {
         ticket_id: 'TKT-SL05TN',
@@ -113,7 +113,7 @@ const dummyComplaints = [
         category: 'Garbage',
         title: 'Garbage Pileup',
         status: 'OPEN',
-        isSlaBreachWarning: 0
+        isslabreachwarning: 0
     },
     {
         ticket_id: 'TKT-TC06TN',
@@ -135,7 +135,7 @@ const dummyComplaints = [
         category: 'Street Light',
         title: 'Street Light Outage',
         status: 'IN_PROGRESS',
-        isSlaBreachWarning: 0
+        isslabreachwarning: 0
     },
     {
         ticket_id: 'TKT-VL07TN',
@@ -157,7 +157,7 @@ const dummyComplaints = [
         category: 'Park and Playground',
         title: 'Broken Playground',
         status: 'OPEN',
-        isSlaBreachWarning: 0
+        isslabreachwarning: 0
     },
     {
         ticket_id: 'TKT-ER08TN',
@@ -179,7 +179,7 @@ const dummyComplaints = [
         category: 'Water Stagnation',
         title: 'Mosquito Breeding',
         status: 'OPEN',
-        isSlaBreachWarning: 0
+        isslabreachwarning: 0
     },
     {
         ticket_id: 'TKT-TN09TN',
@@ -201,7 +201,7 @@ const dummyComplaints = [
         category: 'Public Toilet',
         title: 'Unsanitary Public Toilet',
         status: 'OPEN',
-        isSlaBreachWarning: 0
+        isslabreachwarning: 0
     },
     {
         ticket_id: 'TKT-KK10TN',
@@ -223,7 +223,7 @@ const dummyComplaints = [
         category: 'Storm Water Drains',
         title: 'Clogged Storm Drain',
         status: 'OPEN',
-        isSlaBreachWarning: 0
+        isslabreachwarning: 0
     },
     {
         ticket_id: 'TKT-TT11TN',
@@ -245,7 +245,7 @@ const dummyComplaints = [
         category: 'Road and Footpath',
         title: 'Washed Out Road',
         status: 'IN_PROGRESS',
-        isSlaBreachWarning: 0
+        isslabreachwarning: 0
     },
     {
         ticket_id: 'TKT-DG12TN',
@@ -267,7 +267,7 @@ const dummyComplaints = [
         category: 'General',
         title: 'Low Water Pressure',
         status: 'OPEN',
-        isSlaBreachWarning: 0
+        isslabreachwarning: 0
     },
     {
         ticket_id: 'TKT-NL13TN',
@@ -289,7 +289,7 @@ const dummyComplaints = [
         category: 'Garbage',
         title: 'Illegal Dumping',
         status: 'OPEN',
-        isSlaBreachWarning: 0
+        isslabreachwarning: 0
     },
     {
         ticket_id: 'TKT-KR14TN',
@@ -311,7 +311,7 @@ const dummyComplaints = [
         category: 'Road and Footpath',
         title: 'Damaged Road',
         status: 'RESOLVED',
-        isSlaBreachWarning: 0
+        isslabreachwarning: 0
     },
     {
         ticket_id: 'TKT-HP15TN',
@@ -333,7 +333,7 @@ const dummyComplaints = [
         category: 'Public Health',
         title: 'Open Drain Hazard',
         status: 'OPEN',
-        isSlaBreachWarning: 0
+        isslabreachwarning: 0
     }
 ];
 
@@ -346,7 +346,7 @@ async function seed() {
         try {
             // Calculate SLA deadlines
             let slaDeadline;
-            if (complaint.isSlaBreachWarning === 1) {
+            if (complaint.isslabreachwarning === 1) {
                 // Critical: SLA expires in 2-3 hours from now
                 slaDeadline = new Date(now.getTime() + (2 + Math.random() * 1) * 60 * 60 * 1000);
             } else {
@@ -356,7 +356,7 @@ async function seed() {
             
             const complaintWithSla = {
                 ...complaint,
-                slaDeadline: slaDeadline.toISOString(),
+                sladeadline: slaDeadline.toISOString(),
                 createdAt: new Date(now.getTime() - Math.random() * 48 * 60 * 60 * 1000).toISOString()
             };
 

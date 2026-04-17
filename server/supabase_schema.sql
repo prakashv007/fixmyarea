@@ -24,8 +24,8 @@ CREATE TABLE complaints (
     sla_risk BOOLEAN DEFAULT FALSE,
     location TEXT,
     status TEXT DEFAULT 'OPEN',
-    "slaDeadline" TIMESTAMP WITH TIME ZONE,
-    "isSlaBreachWarning" BOOLEAN DEFAULT FALSE,
+    sladeadline TIMESTAMP WITH TIME ZONE,
+    isslabreachwarning BOOLEAN DEFAULT FALSE,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -58,7 +58,7 @@ export default function CriticalQueueTable({ complaints, onSelectTicket }) {
                                             <Timer size={14} className="text-rose-500" />
                                             <div className="flex flex-col">
                                                 <span className="text-[10px] font-black text-rose-500/50 uppercase tracking-widest font-mono">Breach Flow</span>
-                                                <span className="text-base font-black text-slate-200 font-mono italic">{getSlaCountdown(complaint.slaDeadline)}</span>
+                                                <span className="text-base font-black text-slate-200 font-mono italic">{getSlaCountdown(complaint.sladeadline || complaint.slaDeadline)}</span>
                                             </div>
                                         </div>
                                     </td>
