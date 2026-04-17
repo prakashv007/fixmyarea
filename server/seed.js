@@ -357,7 +357,7 @@ async function seed() {
             const complaintWithSla = {
                 ...complaint,
                 sladeadline: slaDeadline.toISOString(),
-                createdAt: new Date(now.getTime() - Math.random() * 48 * 60 * 60 * 1000).toISOString()
+                timestamp: new Date(now.getTime() - Math.random() * 48 * 60 * 60 * 1000).toISOString()
             };
 
             await insertComplaint(complaintWithSla);
