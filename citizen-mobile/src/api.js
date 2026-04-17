@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // IMPORTANT: For Android Emulator, use 10.0.2.2. For iOS Simulator, use localhost.
 // For physical devices scanning Expo QR code, use your computer's local Wi-Fi IP (e.g. 192.168.1.x)
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:5000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://fixmyarea-server.onrender.com';
 
 const api = axios.create({
     baseURL: API_URL,
