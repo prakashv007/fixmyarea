@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { RefreshCw, Filter, ShieldAlert, LayoutGrid, List } from 'lucide-react';
+import { RefreshCw, Filter, ShieldAlert, LayoutGrid, List, Clock } from 'lucide-react';
 import KPICards from '../components/KPICards';
 import LiveMap from '../components/LiveMap';
 import GrievanceChart from '../components/GrievanceChart';
@@ -20,15 +20,26 @@ export default function AdminDashboard() {
     const fetchComplaints = useCallback(async () => {
         setLoading(true);
         try {
-            const [complaintsRes, statsRes] = await Promise.all([
+            const [complaintsRes, statsRes] = await Promise.allSettled([
                 axios.get('http://localhost:5000/complaints'),
                 axios.get('http://localhost:5000/api/grievances/dashboard')
             ]);
-            setComplaints(complaintsRes.data);
-            setStats(statsRes.data);
+            
+            if (complaintsRes.status === 'fulfilled') {
+                setComplaints(complaintsRes.value.data);
+            } else {
+                console.error('Complaints Fetch Failed:', complaintsRes.reason);
+            }
+
+            if (statsRes.status === 'fulfilled') {
+                setStats(statsRes.value.data);
+            } else {
+                console.error('Dashboard Stats Fetch Failed:', statsRes.reason);
+            }
+
             setLastUpdated(new Date());
         } catch (error) {
-            console.error('Failed to fetch dashboard data:', error);
+            console.error('Fatal HUD Fetch Error:', error);
         } finally {
             setLoading(false);
         }
@@ -72,10 +83,11 @@ export default function AdminDashboard() {
                     </div>
 
                     {/* View Switcher */}
-                    <div className="glass-card p-2 rounded-2xl border border-white/5 overflow-hidden">
+                    <div className="glass-card p-2 rounded-2xl border border-white/5 overflow-hidden flex flex-col gap-1">
                         {[
                             { id: 'DASHBOARD', label: 'Tactical Feed', icon: LayoutGrid },
-                            { id: 'LIST', label: 'Grievance Archive', icon: List }
+                            { id: 'LIST', label: 'Grievance Archive', icon: List },
+                            { id: 'DEPARTMENT', label: 'Department Overview', icon: ShieldAlert }
                         ].map((btn) => (
                             <button 
                                 key={btn.id}
@@ -124,7 +136,7 @@ export default function AdminDashboard() {
 
                 {/* Main Content Area */}
                 <main className="lg:col-span-9 w-full space-y-10">
-                    {view === 'DASHBOARD' ? (
+                    {view === 'DASHBOARD' && (
                         <div className="space-y-10 animate-in fade-in duration-500">
                             <KPICards complaints={filteredComplaints} />
 
@@ -167,7 +179,9 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
                         </div>
-                    ) : (
+                    )}
+                    
+                    {view === 'LIST' && (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
                             <div className="flex items-center justify-between px-2 bg-white/5 p-6 rounded-3xl border border-white/5">
                                  <div>
@@ -184,6 +198,79 @@ export default function AdminDashboard() {
                             </div>
                             <div className="glass-card rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl">
                                 <AllComplaintsTable complaints={filteredComplaints} onSelectTicket={setSelectedTicket} />
+                            </div>
+                        </div>
+                    )}
+                    
+                    {view === 'DEPARTMENT' && (
+                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+                            <div className="flex items-center justify-between px-2 bg-white/5 p-6 rounded-3xl border border-white/5">
+                                 <div>
+                                    <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-2 mb-1">
+                                        <div className="w-2 h-2 rounded-full bg-purple-500" />
+                                        Department Analytics
+                                    </h2>
+                                    <p className="text-2xl font-black text-white uppercase italic tracking-tighter">Department Wise Problems</p>
+                                 </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                                {(() => {
+                                    const grouped = filteredComplaints.reduce((acc, curr) => {
+                                        const dept = curr.department || 'Uncategorized';
+                                        if (!acc[dept]) acc[dept] = [];
+                                        acc[dept].push(curr);
+                                        return acc;
+                                    }, {});
+                                    
+                                    return Object.keys(grouped).map(dept => (
+                                        <div key={dept} className="glass-card rounded-[2rem] border border-white/5 p-6 hover:border-indigo-500/30 transition-all flex flex-col max-h-[500px]">
+                                            <div className="flex justify-between items-start mb-6">
+                                                <h4 className="text-sm font-black text-white uppercase tracking-widest">{dept}</h4>
+                                                <span className="bg-indigo-500/20 text-indigo-400 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest">
+                                                    {grouped[dept].length} Issues
+                                                </span>
+                                            </div>
+                                            <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
+                                                {grouped[dept].map(issue => (
+                                                    <div 
+                                                        key={issue.ticket_id} 
+                                                        onClick={() => setSelectedTicket(issue)}
+                                                        className="bg-white/5 hover:bg-white/10 cursor-pointer border border-white/5 p-5 rounded-2xl transition-all"
+                                                    >
+                                                        <div className="flex justify-between items-center mb-2">
+                                                            <span className="text-[10px] text-slate-500 font-mono tracking-widest">{issue.ticket_id}</span>
+                                                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                                                                issue.status === 'RESOLVED' ? 'bg-emerald-500/20 text-emerald-400' :
+                                                                issue.status === 'IN_PROGRESS' ? 'bg-purple-500/20 text-purple-400' :
+                                                                'bg-slate-500/20 text-slate-400'
+                                                            }`}>
+                                                                {issue.status}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-sm font-bold text-slate-200">{issue.title}</p>
+                                                        <div className="flex items-center justify-between mt-2">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span className="text-[9px] text-slate-500 uppercase tracking-wider bg-slate-950/50 px-2 py-1 rounded-md">{issue.area}</span>
+                                                                <span className={`text-[9px] uppercase tracking-wider px-2 py-1 rounded-md font-bold ${
+                                                                    issue.severity_label === 'CRITICAL' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 
+                                                                    'bg-slate-950/50 text-slate-500'
+                                                                }`}>{issue.severity_label || 'NORMAL'}</span>
+                                                                <span className="text-[9px] text-slate-400 uppercase tracking-wider bg-white/5 border border-white/5 px-2 py-1 rounded-md flex items-center gap-1">
+                                                                    <Clock size={10} className="text-amber-400" />
+                                                                    <span className="text-[8px] font-black tracking-widest">{issue.estimated_resolution_time || '48 HOURS'}</span>
+                                                                </span>
+                                                            </div>
+                                                            <div className="text-[10px] font-black tracking-widest text-slate-400">
+                                                                PTS: <span className={issue.priority_score >= 8 ? 'text-red-400' : 'text-indigo-400'}>{issue.priority_score || 5}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ));
+                                })()}
                             </div>
                         </div>
                     )}

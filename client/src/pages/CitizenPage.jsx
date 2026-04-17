@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
     Send, Loader2, CheckCircle2, AlertCircle, 
     Search, ClipboardList, PenTool, ArrowRight,
-    Cpu, Zap, Shield, MapPin, Clock, Info
+    Cpu, Zap, Shield, MapPin, Clock, Info, Mic
 } from 'lucide-react';
+import MapPicker from '../components/MapPicker';
 
 export default function CitizenPage() {
     const location = useLocation();
@@ -14,6 +15,111 @@ export default function CitizenPage() {
     const actionAreaRef = React.useRef(null);
     const [mode, setMode] = useState(null); // null, 'register', or 'status'
     const [step, setStep] = useState(1);
+    const [isRecording, setIsRecording] = useState(false);
+    const [volume, setVolume] = useState(0);
+    const [recordingTime, setRecordingTime] = useState(0);
+    const [dictationLang, setDictationLang] = useState('en-IN');
+    const recognitionRef = React.useRef(null);
+    const timerIntervalRef = React.useRef(null);
+    const originalTextRef = React.useRef('');
+    const audioContextRef = React.useRef(null);
+    const analyserRef = React.useRef(null);
+    const dataArrayRef = React.useRef(null);
+    const sourceRef = React.useRef(null);
+    const animationFrameRef = React.useRef(null);
+
+    const startVisualizer = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+            analyserRef.current = audioContextRef.current.createAnalyser();
+            analyserRef.current.fftSize = 256;
+            sourceRef.current = audioContextRef.current.createMediaStreamSource(stream);
+            sourceRef.current.connect(analyserRef.current);
+            dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
+
+            const updateVolume = () => {
+                if (!analyserRef.current || !dataArrayRef.current) return;
+                analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+                const sum = dataArrayRef.current.reduce((a, b) => a + b, 0);
+                const avg = sum / dataArrayRef.current.length;
+                setVolume(avg);
+                animationFrameRef.current = requestAnimationFrame(updateVolume);
+            };
+            updateVolume();
+        } catch (err) {
+            console.error("Audio Visualizer Error:", err);
+        }
+    };
+
+    const stopVisualizer = () => {
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        if (sourceRef.current) sourceRef.current.disconnect();
+        if (audioContextRef.current) audioContextRef.current.close().catch(()=>{});
+        setVolume(0);
+    };
+
+    const toggleRecording = () => {
+        if (isRecording) {
+            recognitionRef.current?.stop();
+            stopVisualizer();
+            clearInterval(timerIntervalRef.current);
+            setRecordingTime(0);
+            setIsRecording(false);
+            return;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert('Your browser does not support Neural Speech Recognition.');
+            return;
+        }
+
+        originalTextRef.current = formData.text;
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = dictationLang;
+        
+        recognition.onresult = (event) => {
+            let currentTranscript = '';
+            for (let i = 0; i < event.results.length; i++) {
+                currentTranscript += event.results[i][0].transcript;
+            }
+            
+            setFormData(prev => ({ 
+                ...prev, 
+                text: (originalTextRef.current ? originalTextRef.current + ' ' : '') + currentTranscript 
+            }));
+        };
+
+        recognition.onerror = (event) => {
+            console.error("Speech Recognition Error:", event.error);
+            stopVisualizer();
+            clearInterval(timerIntervalRef.current);
+            setRecordingTime(0);
+            setIsRecording(false);
+        };
+        
+        recognition.onend = () => {
+            stopVisualizer();
+            clearInterval(timerIntervalRef.current);
+            setRecordingTime(0);
+            setIsRecording(false);
+        };
+
+        recognitionRef.current = recognition;
+        recognition.start();
+        startVisualizer();
+        
+        setRecordingTime(0);
+        timerIntervalRef.current = setInterval(() => {
+            setRecordingTime(prev => prev + 1);
+        }, 1000);
+        
+        setIsRecording(true);
+    };
 
     // Sync mode with URL and scroll to action area
     useEffect(() => {
@@ -32,6 +138,7 @@ export default function CitizenPage() {
         if (actionAreaRef.current) {
             actionAreaRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+        
     }, [mode]);
     const [loading, setLoading] = useState(false);
     const [successData, setSuccessData] = useState(null);
@@ -70,7 +177,7 @@ export default function CitizenPage() {
             setTimeout(() => {
                 setSuccessData(resp.data.data);
                 setLoading(false);
-            }, 1500);
+            }, 100);
         } catch (err) {
             setError('Quantum link failed. Please retry.');
             setLoading(false);
@@ -87,7 +194,7 @@ export default function CitizenPage() {
             setTimeout(() => {
                 setTrackData(resp.data);
                 setLoading(false);
-            }, 800);
+            }, 100);
         } catch (err) {
             setError('Signal lost. ID not found.');
             setLoading(false);
@@ -243,15 +350,19 @@ export default function CitizenPage() {
                                                             <div className="flex gap-3">
                                                                 <input 
                                                                     className="flex-1 bg-slate-900/50 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-indigo-500 transition-all font-mono"
-                                                                    placeholder="+91 XXXXX XXXXX"
+                                                                    placeholder="10 digit mobile number"
                                                                     value={formData.citizen_phone}
-                                                                    onChange={(e) => handleFieldChange('citizen_phone', e.target.value)}
+                                                                    maxLength={10}
+                                                                    onChange={(e) => {
+                                                                        const onlyNums = e.target.value.replace(/\D/g, '');
+                                                                        if (onlyNums.length <= 10) handleFieldChange('citizen_phone', onlyNums);
+                                                                    }}
                                                                 />
                                                             </div>
                                                         </div>
 
                                                         <button 
-                                                            disabled={!formData.citizen_phone || !formData.citizen_name}
+                                                            disabled={formData.citizen_phone.length !== 10 || !formData.citizen_name}
                                                             onClick={() => setStep(2)}
                                                             className="w-full btn-primary py-5 flex items-center justify-center gap-3 disabled:opacity-30 transition-all active:scale-[0.98]"
                                                         >
@@ -263,23 +374,36 @@ export default function CitizenPage() {
                                                 {/* STEP 2: LOCATION */}
                                                 {step === 2 && (
                                                     <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
+                                                        {/* Map Picker */}
+                                                        <MapPicker
+                                                            onLocationChange={(locData) => {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    location: locData.locationString,
+                                                                    area: locData.area || prev.area,
+                                                                    locality: locData.locality || prev.locality,
+                                                                    citizen_pincode: locData.pincode || prev.citizen_pincode,
+                                                                    specific_location: locData.displayName || prev.specific_location,
+                                                                }));
+                                                            }}
+                                                        />
+
+                                                        {/* Manual Override Fields */}
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                             <div className="space-y-2">
-                                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Municipal Area</label>
-                                                                <select 
-                                                                    className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-indigo-500 transition-all appearance-none"
-                                                                    value={formData.area}
-                                                                    onChange={(e) => handleFieldChange('area', e.target.value)}
-                                                                >
-                                                                    <option value="">Choose Area</option>
-                                                                    {areas.map(a => <option key={a}>{a}</option>)}
-                                                                </select>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Locality Code</label>
+                                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Municipal Area (Auto-filled)</label>
                                                                 <input 
                                                                     className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-indigo-500 transition-all"
-                                                                    placeholder="e.g. Adyar Sector 4"
+                                                                    placeholder="Auto-detected from pin drop"
+                                                                    value={formData.area}
+                                                                    onChange={(e) => handleFieldChange('area', e.target.value)}
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Locality (Auto-filled)</label>
+                                                                <input 
+                                                                    className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-indigo-500 transition-all"
+                                                                    placeholder="Auto-detected from pin drop"
                                                                     value={formData.locality}
                                                                     onChange={(e) => handleFieldChange('locality', e.target.value)}
                                                                 />
@@ -287,10 +411,10 @@ export default function CitizenPage() {
                                                         </div>
 
                                                         <div className="space-y-2">
-                                                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Neural Vector (Street Address)</label>
+                                                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Specific Address / Landmark</label>
                                                             <textarea 
                                                                 className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-indigo-500 transition-all min-h-[100px]"
-                                                                placeholder="Door No, Building Name..."
+                                                                placeholder="Or type an alternative specific location / landmark..."
                                                                 value={formData.citizen_address}
                                                                 onChange={(e) => handleFieldChange('citizen_address', e.target.value)}
                                                             />
@@ -314,13 +438,10 @@ export default function CitizenPage() {
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                             <div className="space-y-2">
                                                                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Issue Intelligence Category</label>
-                                                                <select 
-                                                                    className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-indigo-500 transition-all appearance-none"
-                                                                    value={formData.category}
-                                                                    onChange={(e) => handleFieldChange('category', e.target.value)}
-                                                                >
-                                                                    {categories.map(c => <option key={c}>{c}</option>)}
-                                                                </select>
+                                                                <div className="w-full bg-slate-900/50 border border-indigo-500/30 rounded-2xl px-6 py-4 flex items-center gap-3">
+                                                                    <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+                                                                    <span className="text-sm font-black text-indigo-400 uppercase tracking-widest">AI Auto-Detection Active</span>
+                                                                </div>
                                                             </div>
                                                             <div className="space-y-2">
                                                                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Grievance Header</label>
@@ -333,8 +454,51 @@ export default function CitizenPage() {
                                                             </div>
                                                         </div>
 
-                                                        <div className="space-y-2">
-                                                            <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-2">Detailed Neural Payload (AI Processing Input)</label>
+                                                        <div className="space-y-2 relative">
+                                                            <div className="flex justify-between items-end ml-2 mb-2">
+                                                                <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Detailed Neural Payload (AI Processing Input)</label>
+                                                                <div className="flex items-center gap-3">
+                                                                    <select 
+                                                                        value={dictationLang}
+                                                                        onChange={(e) => setDictationLang(e.target.value)}
+                                                                        disabled={isRecording}
+                                                                        className="bg-slate-900 border border-white/10 text-[9px] font-black text-white uppercase tracking-widest rounded-xl px-2 py-1.5 focus:outline-none focus:border-indigo-500 disabled:opacity-50 transition-all cursor-pointer"
+                                                                    >
+                                                                        <option value="en-IN">English</option>
+                                                                        <option value="ta-IN">தமிழ்</option>
+                                                                    </select>
+                                                                    <button 
+                                                                        onClick={toggleRecording}
+                                                                        type="button"
+                                                                        className={`flex items-center px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all ${
+                                                                            isRecording 
+                                                                            ? 'bg-rose-500/20 text-rose-400 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.3)]' 
+                                                                            : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10 hover:text-white'
+                                                                        }`}
+                                                                    >
+                                                                        {isRecording ? (
+                                                                        <>
+                                                                            <Mic className="w-3 h-3 mr-2 text-rose-400 animate-pulse" />
+                                                                            <div className="flex items-center gap-[2px] h-3 mr-2">
+                                                                                {[0.4, 0.8, 1, 0.8, 0.4].map((mult, i) => (
+                                                                                    <div 
+                                                                                        key={i} 
+                                                                                        className="w-[3px] bg-rose-400 rounded-full transition-all duration-75"
+                                                                                        style={{ height: `${Math.max(2, Math.min(12, (volume / 30) * 12 * mult))}px` }}
+                                                                                    />
+                                                                                ))}
+                                                                            </div>
+                                                                            <span className="mr-2 font-mono tracking-widest tabular-nums bg-rose-500/20 px-1.5 py-0.5 rounded text-[8px]">
+                                                                                {Math.floor(recordingTime / 60).toString().padStart(2, '0')}:{(recordingTime % 60).toString().padStart(2, '0')}
+                                                                            </span>
+                                                                            REC ACTIVE
+                                                                        </>
+                                                                    ) : (
+                                                                        <><Mic className="w-3 h-3 mr-2" /> Voice Input</>
+                                                                    )}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
                                                             <textarea 
                                                                 className="w-full bg-slate-900/50 border border-white/10 rounded-3xl px-8 py-6 text-lg text-white focus:outline-none focus:border-indigo-500 transition-all min-h-[160px] placeholder:text-slate-700"
                                                                 placeholder="Describe the incident details here..."
@@ -509,7 +673,7 @@ export default function CitizenPage() {
                          <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/20 group-hover:scale-110 transition-transform">
                             <Shield className="w-6 h-6 text-white" />
                          </div>
-                         <span className="font-black uppercase tracking-[0.4em] text-sm italic group-hover:text-indigo-400 transition-colors">SmartCity.OS</span>
+                         <span className="font-black uppercase tracking-[0.4em] text-sm italic group-hover:text-indigo-400 transition-colors">FixMyArea</span>
                     </div>
                     <div className="flex gap-10 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
                         <span className="hover:text-indigo-400 transition-colors cursor-pointer border-b border-transparent hover:border-indigo-400 pb-1">Primary Node: 4892</span>

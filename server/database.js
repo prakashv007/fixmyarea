@@ -109,10 +109,17 @@ const getComplaintByTicketId = (ticketId) => {
   });
 };
 
-const updateComplaintStatus = (ticketId, status) => {
+const updateComplaintStatus = (ticketId, status, isSlaBreachWarning) => {
   return new Promise((resolve, reject) => {
-      const query = `UPDATE complaints SET status = ? WHERE ticket_id = ?`;
-      db.run(query, [status, ticketId], function(err) {
+      let query = `UPDATE complaints SET status = ? WHERE ticket_id = ?`;
+      let params = [status, ticketId];
+
+      if (isSlaBreachWarning !== undefined) {
+          query = `UPDATE complaints SET status = ?, isSlaBreachWarning = ? WHERE ticket_id = ?`;
+          params = [status, isSlaBreachWarning, ticketId];
+      }
+
+      db.run(query, params, function(err) {
           if (err) return reject(err);
           resolve(this.changes);
       });
@@ -124,7 +131,7 @@ const getCriticalComplaints = () => {
         const query = `
             SELECT * FROM complaints 
             WHERE status != 'RESOLVED' 
-            AND slaDeadline <= datetime('now', '+4 hours')
+            AND isSlaBreachWarning = 1
             ORDER BY slaDeadline ASC
         `;
         db.all(query, [], (err, rows) => {

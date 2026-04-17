@@ -15,7 +15,7 @@ function Navigation() {
       <div className="max-w-[1600px] mx-auto flex items-start justify-between pointer-events-auto">
         {/* White Rectangle Brand Area */}
         <Link to="/" className="bg-white px-10 py-4 shadow-2xl group transition-all hover:scale-105 active:scale-95">
-           <span className="text-slate-950 font-black text-3xl uppercase italic tracking-tighter">SmartCity.OS</span>
+           <span className="text-slate-950 font-black text-3xl uppercase italic tracking-tighter">FixMyArea</span>
         </Link>
         
         {/* Navigation / Status */}

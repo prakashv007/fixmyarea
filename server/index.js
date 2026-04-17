@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { getAllComplaints, getComplaintByTicketId, updateComplaintStatus } = require('./database');
+const { getAllComplaints, getComplaintByTicketId, updateComplaintStatus, getDashboardStats } = require('./database');
 const { submitGrievance } = require('./controllers/grievanceController');
 
 const app = express();
@@ -58,15 +58,13 @@ app.patch('/complaint/:id', async (req, res) => {
             return res.status(400).json({ error: 'Status is required.' });
         }
         
-        const count = await updateComplaintStatus(ticketId, status);
+        // Update grievance status and clear breach flag if resolved
+        const isSlaBreachWarning = status === 'RESOLVED' ? 0 : undefined;
+        await updateComplaintStatus(ticketId, status, isSlaBreachWarning);
         
-        if (count === 0) {
-            return res.status(404).json({ error: 'Complaint not found.' });
-        }
-        
-        res.status(200).json({ message: 'Status updated successfully', ticket_id: ticketId, status });
+        res.status(200).json({ message: 'Complaint status updated successfully.' });
     } catch (error) {
-        console.error('Error updating complaint:', error);
+        console.error('Error updating complaint status:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
