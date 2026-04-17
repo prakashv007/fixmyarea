@@ -1,147 +1,120 @@
-const { Pool } = require('pg');
+const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-const pool = new Pool({
-    connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false // Required for Vercel/Neon connections
-    }
-});
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
-pool.on('connect', () => {
-    // console.log('Connected to the PostgreSQL database.');
-});
+if (!supabaseUrl || !supabaseKey || supabaseUrl === 'your_supabase_project_url_here') {
+    console.error('CRITICAL: Supabase credentials missing in .env');
+}
 
-pool.on('error', (err) => {
-    console.error('Unexpected error on idle client', err);
-    process.exit(-1);
-});
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Initialize the Database Table
-const initDB = async () => {
-    try {
-        await pool.query(`CREATE TABLE IF NOT EXISTS complaints (
-            id SERIAL PRIMARY KEY,
-            ticket_id TEXT UNIQUE,
-            citizen_name TEXT,
-            citizen_phone TEXT,
-            citizen_email TEXT,
-            citizen_gender TEXT,
-            citizen_address TEXT,
-            citizen_pincode TEXT,
-            area TEXT,
-            locality TEXT,
-            street_name TEXT,
-            specific_location TEXT,
-            category TEXT,
-            title TEXT,
-            is_anonymous BOOLEAN,
-            text TEXT,
-            normalized_text TEXT,
-            department TEXT,
-            priority_score INTEGER,
-            severity_label TEXT,
-            estimated_resolution_time TEXT,
-            sla_risk BOOLEAN,
-            location TEXT,
-            status TEXT,
-            slaDeadline TIMESTAMP,
-            isSlaBreachWarning BOOLEAN,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )`);
-        console.log('Postgres Complaints table ready.');
-    } catch (err) {
-        console.error('Error creating table:', err.message);
-    }
-};
-
-initDB();
+console.log('Supabase Sentinel Client Initialized.');
 
 const insertComplaint = async (complaint) => {
-    const {
-        ticket_id, citizen_name, citizen_phone, citizen_email, citizen_gender,
-        citizen_address, citizen_pincode, area, locality, street_name,
-        specific_location, category, title, is_anonymous, text, 
-        normalized_text, department, priority_score, severity_label, 
-        estimated_resolution_time, sla_risk, location, status,
-        slaDeadline, isSlaBreachWarning
-    } = complaint;
-
-    const query = `INSERT INTO complaints (
-        ticket_id, citizen_name, citizen_phone, citizen_email, citizen_gender,
-        citizen_address, citizen_pincode, area, locality, street_name,
-        specific_location, category, title, is_anonymous, text, 
-        normalized_text, department, priority_score, severity_label, 
-        estimated_resolution_time, sla_risk, location, status,
-        slaDeadline, isSlaBreachWarning
-    ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 
-        $11, $12, $13, $14, $15, $16, $17, $18, $19, 
-        $20, $21, $22, $23, $24, $25
-    ) RETURNING id`;
-
-    const values = [
-        ticket_id, citizen_name, citizen_phone, citizen_email, citizen_gender,
-        citizen_address, citizen_pincode, area, locality, street_name,
-        specific_location, category, title, is_anonymous, text, 
-        normalized_text, department, priority_score, severity_label, 
-        estimated_resolution_time, sla_risk, location, status,
-        slaDeadline, isSlaBreachWarning
-    ];
-
-    const res = await pool.query(query, values);
-    return res.rows[0].id;
+    try {
+        const { data, error } = await supabase
+            .from('complaints')
+            .insert([complaint])
+            .select();
+            
+        if (error) throw error;
+        return data[0].id;
+    } catch (err) {
+        console.error('Error inserting complaint into Supabase:', err.message);
+        throw err;
+    }
 };
 
 const getAllComplaints = async () => {
-    const res = await pool.query(`SELECT * FROM complaints ORDER BY timestamp DESC`);
-    return res.rows; // Postgres natively returns true/false for BOOLEAN columns
+    try {
+        const { data, error } = await supabase
+            .from('complaints')
+            .select('*')
+            .order('timestamp', { ascending: false });
+            
+        if (error) throw error;
+        return data || [];
+    } catch (err) {
+        console.error('Error fetching complaints from Supabase:', err.message);
+        return [];
+    }
 };
 
 const getComplaintByTicketId = async (ticketId) => {
-    const res = await pool.query(`SELECT * FROM complaints WHERE ticket_id = $1`, [ticketId]);
-    return res.rows.length > 0 ? res.rows[0] : null;
+    try {
+        const { data, error } = await supabase
+            .from('complaints')
+            .select('*')
+            .eq('ticket_id', ticketId)
+            .single();
+            
+        if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows returned"
+        return data || null;
+    } catch (err) {
+        console.error('Error fetching complaint from Supabase:', err.message);
+        return null;
+    }
 };
 
 const updateComplaintStatus = async (ticketId, status, isSlaBreachWarning) => {
-    let query, params;
-    if (isSlaBreachWarning !== undefined) {
-        query = `UPDATE complaints SET status = $1, isSlaBreachWarning = $2 WHERE ticket_id = $3`;
-        params = [status, isSlaBreachWarning, ticketId];
-    } else {
-        query = `UPDATE complaints SET status = $1 WHERE ticket_id = $2`;
-        params = [status, ticketId];
+    try {
+        const updateData = { status };
+        if (isSlaBreachWarning !== undefined) {
+            updateData.isSlaBreachWarning = isSlaBreachWarning;
+        }
+        
+        const { data, error, count } = await supabase
+            .from('complaints')
+            .update(updateData)
+            .eq('ticket_id', ticketId);
+            
+        if (error) throw error;
+        return 1; // Success
+    } catch (err) {
+        console.error('Error updating status in Supabase:', err.message);
+        throw err;
     }
-    const res = await pool.query(query, params);
-    return res.rowCount;
 };
 
 const getCriticalComplaints = async () => {
-    const query = `
-        SELECT * FROM complaints 
-        WHERE status != 'RESOLVED' 
-        AND isSlaBreachWarning = true
-        ORDER BY slaDeadline ASC
-    `;
-    const res = await pool.query(query);
-    return res.rows;
+    try {
+        const { data, error } = await supabase
+            .from('complaints')
+            .select('*')
+            .neq('status', 'RESOLVED')
+            .eq('isSlaBreachWarning', true)
+            .order('slaDeadline', { ascending: true });
+            
+        if (error) throw error;
+        return data || [];
+    } catch (err) {
+        console.error('Error fetching critical complaints from Supabase:', err.message);
+        return [];
+    }
 };
 
 const getDashboardStats = async () => {
-    const complaints = await getAllComplaints();
-    const critical = await getCriticalComplaints();
-    
-    return {
-        total: complaints.length,
-        open: complaints.filter(c => c.status === 'OPEN').length,
-        inProgress: complaints.filter(c => c.status === 'IN_PROGRESS').length,
-        resolved: complaints.filter(c => c.status === 'RESOLVED').length,
-        criticalQueue: critical
-    };
+    try {
+        const complaints = await getAllComplaints();
+        const critical = await getCriticalComplaints();
+        
+        return {
+            total: complaints.length,
+            open: complaints.filter(c => c.status === 'OPEN').length,
+            inProgress: complaints.filter(c => c.status === 'IN_PROGRESS').length,
+            resolved: complaints.filter(c => c.status === 'RESOLVED').length,
+            criticalQueue: critical
+        };
+    } catch (err) {
+        console.error('Error calculating dashboard stats:', err.message);
+        return { total: 0, open: 0, inProgress: 0, resolved: 0, criticalQueue: [] };
+    }
 };
 
 module.exports = {
-  db: pool,
+  db: supabase,
   insertComplaint,
   getAllComplaints,
   getComplaintByTicketId,
