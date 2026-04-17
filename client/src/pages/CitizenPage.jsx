@@ -316,7 +316,7 @@ export default function CitizenPage() {
                 </div>
 
                 <div className="absolute inset-0 opacity-40">
-                    <img src="/landing-bg.jpg" className="w-full h-full object-cover" alt="City Background" />
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/e/ec/Ripon_Building_Chennai.jpg" className="w-full h-full object-cover" alt="City Background" />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
                 </div>
 
