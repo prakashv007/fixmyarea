@@ -17,7 +17,7 @@ export default function TicketDetailModal({ ticket, onClose, onRefresh }) {
     const handleStatusUpdate = async (newStatus) => {
         setUpdating(true);
         try {
-            await axios.patch(`http://localhost:5000/complaint/${ticket.ticket_id}`, { status: newStatus });
+            await axios.patch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/complaint/${ticket.ticket_id}`, { status: newStatus });
             onRefresh();
             onClose();
         } catch (error) {

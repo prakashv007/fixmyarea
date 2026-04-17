@@ -38,8 +38,8 @@ export default function AdminDashboard() {
         setLoading(true);
         try {
             const [complaintsRes, statsRes] = await Promise.allSettled([
-                axios.get('http://localhost:5000/complaints'),
-                axios.get('http://localhost:5000/api/grievances/dashboard')
+                axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/complaints`),
+                axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/grievances/dashboard`)
             ]);
             
             if (complaintsRes.status === 'fulfilled') setComplaints(complaintsRes.value.data);

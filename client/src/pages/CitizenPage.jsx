@@ -269,7 +269,7 @@ export default function CitizenPage() {
         setLoading(true);
         setError('');
         try {
-            const resp = await axios.post('http://localhost:5000/complaint', formData);
+            const resp = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/complaint`, formData);
             setSuccessData(resp.data.data);
             setLoading(false);
         } catch (err) {
@@ -284,7 +284,7 @@ export default function CitizenPage() {
         setLoading(true);
         setError('');
         try {
-            const resp = await axios.get(`http://localhost:5000/complaint/${ticketId.trim()}`);
+            const resp = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/complaint/${ticketId.trim()}`);
             setTrackData(resp.data);
             setLoading(false);
         } catch (err) {
